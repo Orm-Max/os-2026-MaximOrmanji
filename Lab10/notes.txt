@@ -1,0 +1,14 @@
+Lab 10 - Observe answers (Part 3)
+Maxim Ormanji, FAF-242
+
+1. In "trace 32 grep hello README" why do I see only read, and not open or close?
+The mask 32 is 2^5, so only the bit 5 is on. The number 5 is SYS_read. The number of open is 15 and of close is 21, and their bits are off. The kernel prints a call only if (p->trace_mask >> num) & 1 is true, so open and close run, but they are not printed.
+
+2. In forkforkfork, three different pids print lines. Which line of code from Part 2 makes that possible?
+The line "np->trace_mask = p->trace_mask;" in fork() (kernel/proc.c, Part 2.5). The child copies the mask of its parent, so every new process is also traced. Without this line only the first process (the one I started with trace) would print its fork calls, because the children would start with the mask 0. In my output many pids (5, 6, 7, 8, 9, ...) print lines, and this is the proof.
+
+3. In "trace 65536 echo hi" the trace line is printed between "hi" and the new line. Why? How many times does echo call write?
+echo calls write two times: first it writes the text "hi" (2 bytes, the result is 2) and then it writes the new line character (1 byte, the result is 1). The kernel prints the trace line right after each call. So the screen shows "hi" (the first write), then the trace line "67: syscall write -> 2" (it begins on the same screen line, just after "hi"), and only then the second write prints the new line. The trace line of the second call comes after it.
+
+4. Which mask traces both open (15) and close (21), and nothing else?
+The mask with only these two bits on: 2^15 + 2^21 = 32768 + 2097152 = 2129920. I tested it with "trace 2129920 grep hello README" and the output has only "open -> 3" and "close -> 0".
