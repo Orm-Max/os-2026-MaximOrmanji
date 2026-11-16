@@ -1,0 +1,34 @@
+Lab 13: Semaphores in Your Own Kernel (xv6)
+Maxim Ormanji, FAF-242
+
+Observe answers (Part 3, mix)
+
+1. Without the lock, why do the letters mix? (How many system calls does one line cost?)
+One line has 30 letters and a newline, and every letter is a separate write()
+system call, so one line costs 31 system calls. The system can switch from one
+process to the other (or the other process, on another CPU, can call write() at
+the same time) between any two of these calls. Then the letters of the two
+processes go to the screen one after another, in a mixed order.
+
+2. With the lock every line is whole. Which two lines of mix.c make one line a critical section?
+The line "if (uselock) sem_down(3);" before the loop with write(), and the line
+"if (uselock) sem_up(3);" after it. Semaphore 3 starts at 1, so only one process
+can be between them. The other process waits in sem_down(3) until the first one
+gives the unit back with sem_up(3), and the whole line is printed without
+interruption.
+
+3. In sem_down the test is "while (s->value == 0)", not "if". Why can a process wake up and still find 0?
+Between the wake-up and the moment when the process takes the spinlock again,
+another process can run sem_down and take the unit. Also sem_up wakes everyone
+who sleeps on this semaphore, but it added only one unit, so only one of them
+can take it. The others wake up, find value == 0 again, and must go back to
+sleep. With "while" the value is checked again after every wake-up; with "if"
+the process would go on and make the value negative.
+
+4. sem_down calls release(&s->lock) BEFORE sleep(). What would go wrong if it slept holding the spinlock?
+The process would sleep with the lock taken. Then sem_up of another process
+could not take the same lock (acquire would wait for it forever), so nobody
+could increase the value or call wakeup, and the sleeping process would never
+wake up: a deadlock. All other processes that use this semaphore would also
+stay in acquire. In addition, a spinlock keeps the interrupts off, and the
+kernel must not sleep with them off.
